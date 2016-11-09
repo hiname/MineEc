@@ -102,9 +102,10 @@ public class DataMgr {
 			if (tmpMixTable.equals(mixFormula[i][0])) {
 				msg = tryAddMyItem(Integer.parseInt(mixFormula[i][1]));
 				if (msg.equals("add")){
-					msg = ActMain.mineName[0] + " 조합 성공";
+					msg = ActMain.mineName[i] + " 조합 성공";
 					combineInvenItemList.clear();
 				}
+				break;
 			}
 		}
 
