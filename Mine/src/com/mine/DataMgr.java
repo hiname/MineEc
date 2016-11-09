@@ -90,7 +90,7 @@ public class DataMgr {
     };
     
     public String tryMix() {
-        String msg = "조합식이 없습니다.";
+        String msg = "garbage";
 
         String tmpMixTable = "";
         Collections.sort(combineInvenItemList);
