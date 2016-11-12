@@ -1,15 +1,13 @@
 package com.mine;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -17,33 +15,37 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class ActMain extends Activity {
+    //
     final static String mineName[] = {
             "나무",
             "돌",
             "금",
     };
+    //
     final int locResId[] = {
             R.drawable.loc_wood,
             R.drawable.loc_stone,
-            R.drawable.loc_gold
+            R.drawable.loc_gold,
     };
+    //
     final int matResId[] = {
             R.drawable.wood,
             R.drawable.stone,
-            R.drawable.gold
+            R.drawable.gold,
     };
+
     ImageView[] ivLoc, ivCombineInven, ivMat;
     TextView[] tvMat;
     Button btnMix;
     ImageView ivMineObj, ivMineWorker;
     boolean isMineHit = false;
+    int mineHitFrame = 0;
     TextView tvIdleMsg, tvMyMoney;
     int gatherIdx = 0;
     Handler mainAnimHandler = new Handler();
     DataMgr dataMgr;
     Button btnStartInven;
     EffectCanvas effectCanvas;
-
     final static String itemListKey = "itemListKey";
 
     @Override
@@ -51,13 +53,8 @@ public class ActMain extends Activity {
         Log.d("d", "onCreate");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.act_main);
-
-
-
         effectCanvas = new EffectCanvas(this);
-
         ((FrameLayout) findViewById(R.id.rootFl)).addView(effectCanvas);
-
         btnStartInven = (Button) findViewById(R.id.btnInven);
         btnStartInven.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -68,7 +65,6 @@ public class ActMain extends Activity {
                 startActivity(intent);
             }
         });
-
         ivMineObj = (ImageView) findViewById(R.id.ivMineObj);
         ivMineWorker = (ImageView) findViewById(R.id.ivMineWorker);
         tvIdleMsg = (TextView) findViewById(R.id.tvIdleMsg);
@@ -127,6 +123,21 @@ public class ActMain extends Activity {
                 @Override
                 public void onClick(View v) {
                     dataMgr.addCombine(idx);
+                    if (dataMgr.getCombineInvenItemCount() == 5) {
+                        for (ImageView iv : ivMat) {
+                            iv.setClickable(false);
+                        }
+                        new Handler().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                btnMix.performClick();
+                                for (ImageView iv : ivMat) {
+                                    iv.setClickable(true);
+                                }
+                            }
+                        }, 200);
+
+                    }
                     updateCombineInven();
                     updateMatCount();
                 }
@@ -139,8 +150,20 @@ public class ActMain extends Activity {
         btnMix.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String mixResultMsg = dataMgr.tryMix();
-                Toast.makeText(ActMain.this, mixResultMsg, Toast.LENGTH_SHORT).show();
+                String mixItemName = dataMgr.tryMixGetItemName();
+                String formulaMsg = "";
+                if (mixItemName.equals(DataMgr.formulaNotFound)){
+                    formulaMsg = "조합식이 없음";
+                } else if (mixItemName.equals(DataMgr.myInvenFull)){
+                    formulaMsg = "인벤 가득참";
+                }  else {
+                    formulaMsg = mixItemName + " 조합 완료";
+                }
+
+                Toast.makeText(ActMain.this, formulaMsg, Toast.LENGTH_SHORT).show();
+                Log.d("d", "mixItemName : " + mixItemName);
+                Log.d("d", "formulaMsg : " + formulaMsg);
+
                 updateCombineInven();
                 updateMatCount();
             }
@@ -159,29 +182,59 @@ public class ActMain extends Activity {
         updateMyMoney();
         updateCombineInven();
         updateMatCount();
+        shake = AnimationUtils.loadAnimation(ActMain.this, R.anim.shake);
+        shake.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {
+            }
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                isShakeAnim = false;
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+            }
+        });
         mainAnimHandler.post(mainAnimRnb);
     }
 
+    boolean isShakeAnim = false;
+    Animation shake;
     int tmpPlayFrameCount = 0;
     Runnable mainAnimRnb = new Runnable() {
         @Override
         public void run() {
             isMineHit ^= true;
-            if (isMineHit) {
+            mineHitFrame++;
+
+            if (mineHitFrame == 0) {
                 ivMineWorker.setImageResource(R.drawable.mineworker);
-                String msg = dataMgr.hitMine();
-                Log.d("d", msg);
-                effectCanvas.addStr(msg);
-                effectCanvas.invalidate();
+            } else if (mineHitFrame == 1) {
+                ivMineWorker.setImageResource(R.drawable.mineworker1_2);
+            } else if (mineHitFrame == 2) {
+                ivMineWorker.setImageResource(R.drawable.mineworker1_3);
+            } else if (mineHitFrame == 3) {
+                ivMineWorker.setImageResource(R.drawable.mineworker2);
             } else {
                 ivMineWorker.setImageResource(R.drawable.mineworker2);
+                mineHitFrame = 0;
+                effectCanvas.addStr(dataMgr.hitMine());
+                if (!isShakeAnim) {
+                    ivMineObj.startAnimation(shake);
+                    isShakeAnim = true;
+                }
             }
+
             updateCombineInven();
             updateMatCount();
-            mainAnimHandler.postDelayed(this, 1000);
+            mainAnimHandler.postDelayed(this, hitDelay);
             Log.d("d", "play : " + tmpPlayFrameCount++);
         }
     };
+
+    int hitDelay = 120;
 
     public void updateCombineInven() {
         for (int i = 0; i < ivCombineInven.length; i++) {
@@ -199,15 +252,16 @@ public class ActMain extends Activity {
     }
 
     public void updateMyMoney() {
-    	tvMyMoney.setText("$" + dataMgr.getMyMoney());
+        Log.d("d", "updateMyMoney : " + dataMgr.getMyMoney());
+        tvMyMoney.setText("$" + dataMgr.getMyMoney());
     }
-    
+
     @Override
-    protected void onResume(){
-    	super.onResume();
-    	updateMyMoney();
+    protected void onResume() {
+        super.onResume();
+        updateMyMoney();
     }
-    
+
     @Override
     protected void onStop() {
         Log.d("d", "onStop");
