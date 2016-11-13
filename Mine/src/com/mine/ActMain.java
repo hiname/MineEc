@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
@@ -11,6 +13,7 @@ import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,22 +44,22 @@ public class ActMain extends Activity {
     boolean isMineHit = false;
     int mineHitFrame = 0;
     TextView tvIdleMsg, tvMyMoney;
+    static TextView tvSystemMsg;
     int gatherIdx = 0;
     Handler mainAnimHandler = new Handler();
     DataMgr dataMgr;
-    Button btnStartInven;
-    EffectCanvas effectCanvas;
-    final static String itemListKey = "itemListKey";
+    Button btnOpenInven;
+    EffectCanvas hitEffectCanvas;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d("d", "onCreate");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.act_main);
-        effectCanvas = new EffectCanvas(this);
-        ((FrameLayout) findViewById(R.id.rootFl)).addView(effectCanvas);
-        btnStartInven = (Button) findViewById(R.id.btnInven);
-        btnStartInven.setOnClickListener(new View.OnClickListener() {
+        hitEffectCanvas = new EffectCanvas(this);
+        ((FrameLayout) findViewById(R.id.rootFl)).addView(hitEffectCanvas);
+        btnOpenInven = (Button) findViewById(R.id.btnInven);
+        btnOpenInven.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(ActMain.this, ActInven.class);
@@ -69,6 +72,31 @@ public class ActMain extends Activity {
         ivMineWorker = (ImageView) findViewById(R.id.ivMineWorker);
         tvIdleMsg = (TextView) findViewById(R.id.tvIdleMsg);
         tvMyMoney = (TextView) findViewById(R.id.tvMyMoney);
+        tvSystemMsg = (TextView) findViewById(R.id.tvSystemMsg);
+        tvSystemMsg.addTextChangedListener(new TextWatcher(){
+			
+			@Override
+			public void onTextChanged(CharSequence arg0, int arg1, int arg2, int arg3){}
+			
+			@Override
+			public void beforeTextChanged(CharSequence arg0, int arg1, int arg2, int arg3){}
+			
+			@Override
+			public void afterTextChanged(Editable arg0){
+				// ((ScrollView) findViewById(R.id.scrollSystemMsg)).
+				Log.d("d", "afterTextChanged");
+				// tvSystemMsg.scrollTo(0, tvSystemMsg.getHeight());
+				
+				new Handler().postDelayed(new Runnable(){
+					
+					@Override
+					public void run(){
+						((ScrollView) findViewById(R.id.scrollSystemMsg)).fullScroll(View.FOCUS_DOWN);
+					}
+				}, 250);
+				
+			}
+		});
         //
         ivLoc = new ImageView[]{
                 (ImageView) findViewById(R.id.ivLoc1),
@@ -152,9 +180,9 @@ public class ActMain extends Activity {
             public void onClick(View v) {
                 String mixItemName = dataMgr.tryMixGetItemName();
                 String formulaMsg = "";
-                if (mixItemName.equals(DataMgr.formulaNotFound)){
+                if (mixItemName.equals(DataMgr.resultCode_formulaNotFound)){
                     formulaMsg = "조합식이 없음";
-                } else if (mixItemName.equals(DataMgr.myInvenFull)){
+                } else if (mixItemName.equals(DataMgr.resultCode_myInvenFull)){
                     formulaMsg = "인벤 가득참";
                 }  else {
                     formulaMsg = mixItemName + " 조합 완료";
@@ -220,7 +248,12 @@ public class ActMain extends Activity {
             } else {
                 ivMineWorker.setImageResource(R.drawable.mineworker2);
                 mineHitFrame = 0;
-                effectCanvas.addStr(dataMgr.hitMine());
+                String hitMsg = dataMgr.hitMine();
+                hitEffectCanvas.addStr(hitMsg);
+                
+                if (hitMsg.contains("+"))
+                	ActMain.tvSystemMsg.setText(ActMain.tvSystemMsg.getText().toString() + hitMsg + "\n");
+                	
                 if (!isShakeAnim) {
                     ivMineObj.startAnimation(shake);
                     isShakeAnim = true;

@@ -12,58 +12,52 @@ import java.util.Collections;
  * Created by USER on 2016-11-09.
  */
 public class DataMgr {
+	
+	private static SharedPreferences spf;
     static final String saveFileName = "pref";
-    static final String destoryTimeKey = "destoryTimeKey";
-    static final String matAmountDataKey = "matAmountDataKey";
-    static final String locSelectCodeKey = "locSelectCodeKey";
-    static final String combinePackKey = "combinePackKey";
-    static final String myItemPackKey = "myItemPackKey";
-    static final String myMoneyKey = "myMoneyKey";
-    static final String fastSellKey = "fastSellKey";
     //
-    static final String formulaNotFound = "formulaNotFound";
-    static final String myInvenFull = "myInvenFull";
-    static final String myItemAddSuccess = "myItemAddSuccess";
+    private final String destoryTimeKey = "destoryTimeKey";
+    private final String matAmountDataKey = "matAmountDataKey";
+    private final String locSelectCodeKey = "locSelectCodeKey";
+    private final String combinePackKey = "combinePackKey";
+    private final String myItemPackKey = "myItemPackKey";
+    private final String myMoneyKey = "myMoneyKey";
+    private final String fastSellKey = "fastSellKey";
     //
-    private long myMoney = 0;
-    static final float[] mineHitCount = {0.125f, 0.05f, 0.025f};
-    private float[] matAmount = new float[mineHitCount.length];
+    static final String resultCode_formulaNotFound = "resultCode_formulaNotFound";
+    static final String resultCode_myInvenFull = "resultCode_myInvenFull";
+    static final String resultCode_myItemAddOK = "resultCode_myItemAddOK";
+    //
+    private DataMgr() {}
+
+    private static class Singleton {
+        private static final DataMgr instance = new DataMgr();
+    }
+
+    public static DataMgr getInstance(Context context) {
+        spf = context.getSharedPreferences(saveFileName, Context.MODE_PRIVATE);
+        return Singleton.instance;
+    }
+    //
+    private final float[] mineFindChance = {0.125f, 0.05f, 0.025f};
+    private float[] matAmount = new float[mineFindChance.length];
     private int locSelectCode = 0;
-    private int combineInvenSize = 5;
-    private long lastIdleSecTime;
-    private int lastIdleMineCount;
-    private boolean isFastSell = false;
     //
     private ArrayList<Integer> combineInvenItemList = new ArrayList<Integer>();
-    private ArrayList<Integer> myItemList = new ArrayList<Integer>();
-    private static SharedPreferences spf;
-    private int myItemPrice[][] = {
-            {0, 200},
-            {1, 300},
-            {2, 1000},
-            {3, 300},
-            {4, 400},
-            {5, 500},
-            {6, 600},
-            {7, 700},
-            {8, 800},
-    };
+    private int combineInvenSize = 5;
     //
-    private final String mixFormula[][] = {
-            {"00000", "0"},
-            {"11111", "1"},
-            {"22222", "2"},
-            {"00001", "3"}, // stick
-            {"00011", "4"}, // hammer
-            {"00111", "5"}, // maul
-            {"01111", "6"}, // mace
-            {"00012", "7"}, // spear
-            {"00112", "8"}, // morningstar
+    private long lastIdleSecTime;
+    private int lastIdleMineCount;
+    //
+    private boolean isFastSell = false;
+    //
+    private long myMoney;
+    private ArrayList<Integer> myItemList = new ArrayList<Integer>();
+    private ItemInfo itemInfo = ItemInfo.getInstance();
 
-    };
     //
     private int penaltyFactor = 16;
-
+    
     public void setFastSell(boolean isFastSell) {
         this.isFastSell = isFastSell;
     }
@@ -88,64 +82,54 @@ public class DataMgr {
     public String tryAddMyItem(int itemId) {
         Log.d("d", "tryAddMyItem");
         if (ActInven.invenSize <= myItemList.size()) {
-            return myInvenFull;
+            return resultCode_myInvenFull;
         }
         myItemList.add(itemId);
-        return myItemAddSuccess;
+        return resultCode_myItemAddOK;
     }
 
     public int sellMyItem(int idx) {
         if (idx >= myItemList.size()) return -1;
         int sellItemId = myItemList.remove(idx);
-        int itemPriceOrder = -1;
-        for (int i = 0; i < myItemPrice.length; i++) {
-            if (sellItemId == myItemPrice[i][0]) {
-                itemPriceOrder = i;
-                break;
-            }
-        }
-
-        int moneyValue = (itemPriceOrder == -1) ? garbagePrice : myItemPrice[itemPriceOrder][1];
-        addMyMoney(moneyValue);
-        return moneyValue;
+        addMyMoney(itemInfo.getPrice(sellItemId));
+        return sellItemId;
     }
-
-    int garbagePrice = 10;
 
     private void addMyMoney(int money) {
         Log.d("d", "addMyMoney : " + money);
         myMoney += money;
     }
 
-    private DataMgr() {
-    }
-
-    private static class Singleton {
-        private static final DataMgr instance = new DataMgr();
-    }
-
-    public static DataMgr getInstance(Context context) {
-        System.out.println("create instance");
-        spf = context.getSharedPreferences(saveFileName, Context.MODE_PRIVATE);
-        return Singleton.instance;
-    }
-
+    private final String mixFormula[][] = {
+            {"0,0,0,0,0", "0"},
+            {"1,1,1,1,1", "1"},
+            {"2,2,2,2,2", "2"},
+            {"0,0,0,0,1", "3"}, // stick
+            {"0,0,0,1,1", "4"}, // hammer
+            {"0,0,1,1,1", "5"}, // maul
+            {"0,1,1,1,1", "6"}, // mace
+            {"0,0,0,1,2", "7"}, // spear
+            {"0,0,1,1,2", "8"}, // morningstar
+    };
+    
     public String tryMixGetItemName() {
-        String resultItemName = formulaNotFound;
+        String resultItemName = resultCode_formulaNotFound;
         String tmpMixTable = "";
         Collections.sort(combineInvenItemList);
         //
         for (int i = 0; i < combineInvenItemList.size(); i++) {
-            tmpMixTable += combineInvenItemList.get(i);
+            tmpMixTable += combineInvenItemList.get(i) + ",";
         }
+        if (tmpMixTable.length() > 0) tmpMixTable = tmpMixTable.substring(0, tmpMixTable.length() - 1);
         //
         for (int i = 0; i < mixFormula.length; i++) {
             if (tmpMixTable.equals(mixFormula[i][0])) {
                 resultItemName = tryAddMyItem(Integer.parseInt(mixFormula[i][1]));
 
-                if (resultItemName.equals(myItemAddSuccess)) {
-                    resultItemName = ActInven.myItemName[i];
+                if (resultItemName.equals(resultCode_myItemAddOK)) {
+                    resultItemName = itemInfo.getName(i);
                     combineInvenItemList.clear();
+                    break;
                 }
             }
         }
@@ -164,7 +148,7 @@ public class DataMgr {
 
     public String hitMine() {
         String msg = "hit!";
-        int find = (Math.random() < mineHitCount[locSelectCode]) ? 1 : 0;
+        int find = (Math.random() < mineFindChance[locSelectCode]) ? 1 : 0;
         addMatAmount(locSelectCode, find);
         if (find > 0) msg = ActMain.mineName[locSelectCode] + " + " + find;
 //        if (mineHitCount[locSelectCode] > (matAmount[locSelectCode] - (int)(matAmount[locSelectCode]))){
@@ -255,7 +239,7 @@ public class DataMgr {
         long nowMillis = System.currentTimeMillis();
         long destroyMillis = spf.getLong(destoryTimeKey, nowMillis);
         lastIdleSecTime = (nowMillis - destroyMillis) / 1000;
-        lastIdleMineCount = (int) (mineHitCount[locSelectCode] * (lastIdleSecTime / penaltyFactor));
+        lastIdleMineCount = (int) (mineFindChance[locSelectCode] * (lastIdleSecTime / penaltyFactor));
         matAmount[locSelectCode] += lastIdleMineCount;
         // myItem
         String myItemPack = spf.getString(myItemPackKey, null);

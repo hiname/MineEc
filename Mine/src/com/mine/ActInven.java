@@ -1,9 +1,9 @@
 package com.mine;
 
+import java.util.Arrays;
+
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -14,42 +14,17 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import java.util.Arrays;
-
 /**
  * Created by USER on 2016-11-09.
  */
 public class ActInven extends Activity {
-    final int myInvenResId[] = {
-            R.drawable.woodblock,
-            R.drawable.stoneblock,
-            R.drawable.goldblock,
-            R.drawable.stick,
-            R.drawable.hammer,
-            R.drawable.maul,
-            R.drawable.mace,
-            R.drawable.spear,
-            R.drawable.morningstar,
-
-    };
-
-    static final String myItemName[] = {
-            "목재블럭",
-            "석재블럭",
-            "황금블럭",
-            "막대기",
-            "망치",
-            "큰망치",
-            "메이스",
-            "창",
-            "모닝스타",
-    };
-
+		
     DataMgr dataMgr;
+    ItemInfo itemInfo = ItemInfo.getInstance(); 
     static int invenSize = 9;
     Dialog dlg;
-    ImageView iv;
-    Button btn;
+    ImageView ivPopupIcon;
+    Button btnPopupSell;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,10 +36,10 @@ public class ActInven extends Activity {
         dlg = new Dialog(this);
         LinearLayout ll = new LinearLayout(this);
         ll.setOrientation(LinearLayout.VERTICAL);
-        iv = new ImageView(this);
+        ivPopupIcon = new ImageView(this);
         // iv.setImageResource(R.mipmap.ic_launcher);
-        btn = new Button(this);
-        btn.setOnClickListener(new View.OnClickListener() {
+        btnPopupSell = new Button(this);
+        btnPopupSell.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 sellItem();
@@ -72,8 +47,8 @@ public class ActInven extends Activity {
             }
         });
 
-        ll.addView(iv);
-        ll.addView(btn);
+        ll.addView(ivPopupIcon);
+        ll.addView(btnPopupSell);
         dlg.setContentView(ll);
 
         CheckBox cbFastSell = (CheckBox) findViewById(R.id.cbFastSell);
@@ -85,16 +60,20 @@ public class ActInven extends Activity {
             }
         });
 
-
         updateInven();
         setOnClickListener();
 
     }
 
     public void sellItem() {
-        int sellMoney = dataMgr.sellMyItem(lastSelIdx);
-        if (sellMoney > 0)
-            Toast.makeText(ActInven.this, sellMoney + "원 획득", Toast.LENGTH_SHORT).show();
+        int sellItemId = dataMgr.sellMyItem(lastSelIdx);
+        if (sellItemId != -1) {
+        	String sellItemName = itemInfo.getName(sellItemId);
+        	int sellItemPrice = itemInfo.getPrice(sellItemId);
+        	String sellMsg = sellItemName + " 판매 " + sellItemPrice + "원 획득";
+            Toast.makeText(ActInven.this, sellMsg, Toast.LENGTH_SHORT).show();
+            ActMain.tvSystemMsg.setText(ActMain.tvSystemMsg.getText().toString() + sellMsg + "\n");
+        }
         updateInven();
     }
 
@@ -108,16 +87,19 @@ public class ActInven extends Activity {
             for (int j = 0; j < llChild.getChildCount(); j++) {
                 final int selIdx = itemCnt;
                 ((ImageView) llChild.getChildAt(j)).setOnClickListener(new View.OnClickListener() {
-                    @Override
+                	@Override
                     public void onClick(View v) {
-                        lastSelIdx = selIdx;
+                    	lastSelIdx = selIdx;
                         if (dataMgr.getFastSell()) {
                             sellItem();
                         } else {
                             int getItemId = dataMgr.getMyItemId(selIdx);
                             if (getItemId == -1) return;
-                            iv.setImageResource(myInvenResId[getItemId]);
-                            btn.setText(myItemName[getItemId] + " 판매");
+                            // ivPopupIcon.setImageResource(myInvenResId[getItemId]);
+                            // btnPopupSell.setText(myItemName[getItemId] + " 판매");
+                            ivPopupIcon.setImageResource(itemInfo.getResId(getItemId));
+                            btnPopupSell.setText(itemInfo.getName(getItemId) + " 판매");
+                            
                             dlg.show();
                         }
                     }
@@ -142,9 +124,9 @@ public class ActInven extends Activity {
                         for (int j = 0; j < llChild.getChildCount(); j++) {
                             ImageView ivItem = (ImageView) llChild.getChildAt(j);
 
-                            int getItemIdx = Integer.parseInt(itemList[itemCnt]);
-                            Log.d("d", "getItemIdx : " + getItemIdx);
-                            ivItem.setImageResource(myInvenResId[getItemIdx]);
+                            int getItemId = Integer.parseInt(itemList[itemCnt]);
+                            Log.d("d", "getItemId : " + getItemId);
+                            ivItem.setImageResource(itemInfo.getResId(getItemId));
                             itemCnt++;
                             if (itemCnt >= itemList.length)
                                 break loop;
