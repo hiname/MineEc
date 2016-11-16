@@ -7,22 +7,22 @@ import android.util.Log;
  */
 public class APlan {
 
-	/**
-	 * count를 통한 다량 mix
-	 *   - 재료 대량 처리
-    */
-    public void plan() {}
-    
     /**
-	 * 피로도(체력) 게이지
+     * count를 통한 다량 mix
+     *   - 재료 대량 처리
+     */
+    public void plan() {}
+
+    /**
+     * 피로도(체력) 게이지
      *   - 빠르게 채집하되 해당 수치에 따른 제한
      *     (빠르게 채집하면 재료가 너무 많이 생기고(희소성 하락),
      *     느리게 채집하면 쉽게 지루할 수 있다.)
      *
      */
     public void plan2() {}
-    
-	/**
+
+    /**
      * loc 변경시 일정량 까지 채집 후 정지(또는 허공)
      *
      * 해당 자원 선택시 이동 애니메이션
@@ -31,7 +31,7 @@ public class APlan {
      *
      */
     public void plan3() {}
-    
+
     /**
      * JSON 타입의 x,y 좌표 문자열을 배열로 추출
      *  [{"x":1, "y":2}, {"x":3, "y":4}]
