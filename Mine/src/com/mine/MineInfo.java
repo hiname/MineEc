@@ -17,7 +17,7 @@ public class MineInfo {
     static final int locResId[] = {
             R.drawable.loc_wood,
             R.drawable.loc_stone,
-            R.drawable.loc_hunt,
+            R.drawable.butchershop,
     };
 
     static final int locBgResId[] = {
@@ -35,6 +35,9 @@ public class MineInfo {
             R.drawable.gold,
             R.drawable.pig,
     };
+    
+    //
+	static final float[] mineFindChance = {0.07f, 0.03f, 0.05f};
 
     public class Mine {
         private int resId;

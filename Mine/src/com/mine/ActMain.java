@@ -2,49 +2,59 @@ package com.mine;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
 import android.view.animation.AnimationUtils;
+import android.view.animation.ScaleAnimation;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class ActMain extends Activity implements DataUpdate {
+public class ActMain extends Activity implements MainUpdate {
+	//
+	static final String TOAST_TOKEN = "#t";
 	//
 	ImageView[] ivLoc, ivCombineInven, ivMat;
 	TextView[] tvMat;
 	Button btnMix;
-	ImageView ivMineObj, ivMineWorker;
-	boolean isMineHit = false;
-	int hitFrame = 0;
+	ImageView ivMineObj, ivMineWorker, ivHitEffect;
+	// boolean isMineHit = false;
+	int motionFrame, hitEffecFrame;
 	TextView tvItemStat, tvMyMoney;
-	int gatherIdx = 0;
 	Handler mainAnimHandler = new Handler();
 	DataMgr dataMgr;
 	MyItemList myItemList = MyItemList.getInstance();
-	Button btnOpenInven;
-	EffectCanvas hitEffectCanvas;
+	ImageButton btnInvenOpen;
+	TextEffectCanvas hitEffectCanvas;
 	ArrayAdapter<String> systemMsgAdapter;
 	ImageView ivEquipItem, ivLunchItem;
 	TextView tvEquipItemDurability, tvLunchItemDurability;
 	TextView tvEquipItemFindChance, tvLunchItemFindChance;
 	// ItemInfo itemInfo = ItemInfo.getInstance();
+	private Rect rectBtnRange;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d("d", "onCreate");
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.act_main);
+		//
 		ivEquipItem = (ImageView) findViewById(R.id.ivEquipItem);
 		ivEquipItem.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -54,21 +64,46 @@ public class ActMain extends Activity implements DataUpdate {
 		});
 		tvEquipItemDurability = (TextView) findViewById(R.id.tvEquipItemDurability);
 		tvEquipItemFindChance = (TextView) findViewById(R.id.tvEquipItemFindChance);
+		//
 		ivLunchItem = (ImageView) findViewById(R.id.ivLunchItem);
-		tvLunchItemDurability = (TextView) findViewById(R.id.tvLunchItemDurability);
-		tvLunchItemFindChance = (TextView) findViewById(R.id.tvLunchItemFindChance);
-		hitEffectCanvas = new EffectCanvas(this);
-		((FrameLayout) findViewById(R.id.rootFl)).addView(hitEffectCanvas);
-		btnOpenInven = (Button) findViewById(R.id.btnInven);
-		btnOpenInven.setOnClickListener(new View.OnClickListener() {
+		ivLunchItem.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent(ActMain.this, ActInven.class);
-				startActivity(intent);
+				dataMgr.releaseLunch();
 			}
 		});
+		tvLunchItemDurability = (TextView) findViewById(R.id.tvLunchItemDurability);
+		tvLunchItemFindChance = (TextView) findViewById(R.id.tvLunchItemFindChance);
+		//
+		hitEffectCanvas = new TextEffectCanvas(this);
+		((FrameLayout) findViewById(R.id.rootFl)).addView(hitEffectCanvas);
+		btnInvenOpen = (ImageButton) findViewById(R.id.btnInvenOpen);
+		btnInvenOpen.setOnTouchListener(new View.OnTouchListener() {
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+				Log.d("d", "event.getAction() : " + event.getAction());
+				switch (event.getAction()) {
+					case MotionEvent.ACTION_DOWN :
+						// btnInvenOpen.setBackgroundResource(R.drawable.btn_bg_down);
+						rectBtnRange = new Rect(v.getLeft(), v.getTop(), v.getRight(), v.getBottom());
+						break;
+
+					case MotionEvent.ACTION_UP :
+						// btnInvenOpen.setBackgroundResource(R.drawable.btn_bg);
+						if(rectBtnRange.contains(v.getLeft() + (int) event.getX(), v.getTop() + (int) event.getY())){
+							Intent intent = new Intent(ActMain.this, ActInven.class);
+							startActivity(intent);
+						}
+						break;
+				}
+				return true;
+			}
+		});
+
 		ivMineObj = (ImageView) findViewById(R.id.ivMineObj);
 		ivMineWorker = (ImageView) findViewById(R.id.ivMineWorker);
+		ivHitEffect = (ImageView) findViewById(R.id.ivHitEffect);
+		//
 		tvItemStat = (TextView) findViewById(R.id.tvItemStat);
 		tvMyMoney = (TextView) findViewById(R.id.tvMyMoney);
 		ListView lvSystemMsg = (ListView) findViewById(R.id.lvSystemMsg);
@@ -105,7 +140,7 @@ public class ActMain extends Activity implements DataUpdate {
 			ivCombineInven[i].setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					dataMgr.removeCombine(idx);
+					dataMgr.releaseCombine(idx);
 					updateCombineInven();
 					updateMatCount();
 				}
@@ -206,8 +241,8 @@ public class ActMain extends Activity implements DataUpdate {
 			}
 		});
 		mainAnimHandler.post(mainAnimRnb);
-		dataMgr.setDataUpdate(this);
-		myItemList.setDataUpdate(this);
+		dataMgr.setMainUpdate(this);
+		myItemList.setMainUpdate(this);
 		CheckBox cbFastMix = (CheckBox) findViewById(R.id.cbFastMix);
 		cbFastMix.setChecked(dataMgr.getFastMix());
 		cbFastMix.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -216,55 +251,153 @@ public class ActMain extends Activity implements DataUpdate {
 				dataMgr.setFastMix(isChecked);
 			}
 		});
-
 		updateMyMoney();
 		updateCombineInven();
 		updateMatCount();
-		Log.d("d", "oncreate_equipItemId : " + equipItem);
 		dataMgr.useItem(dataMgr.getEquipItem());
 		dataMgr.useItem(dataMgr.getLunchItem());
-		updateItemStatMsg();
+
+		updateFindChanceMsg();
+		initAnim();
 	}
 
 	boolean isShakeAnim = false;
 	Animation shake;
-	int[] hitFrameResId = {
-			R.drawable.mineworker,
-			R.drawable.mineworker1_2,
-			R.drawable.mineworker1_3,
-			R.drawable.mineworker2,
-			R.drawable.mineworker2,
+//	int[] hitFrameResId = {
+//			R.drawable.mineworker01,
+//			// R.drawable.mineworker02,
+//			R.drawable.mineworker03,
+//			// R.drawable.mineworker04,
+//			R.drawable.mineworker05,
+//			// R.drawable.mineworker06,
+//			R.drawable.mineworker07,
+//			// R.drawable.mineworker08,
+//			R.drawable.mineworker09,
+//			// R.drawable.mineworker10,
+//			R.drawable.mineworker11,
+//			// R.drawable.mineworker12,
+//	};
+
+	int[] motionFrameResId = {
+			R.drawable.mwb0,
+			R.drawable.mwb1,
+			R.drawable.mwb2,
+			R.drawable.mwb3,
+			R.drawable.mwb4,
+			R.drawable.mwb5,
+			R.drawable.mwb6,
+			R.drawable.mwb7,
+			R.drawable.mwb8,
+			R.drawable.mwb9,
+			R.drawable.mwb10,
+			R.drawable.mwb11,
+			R.drawable.mwb12,
+			R.drawable.mwb13,
+			R.drawable.mwb14,
+			R.drawable.mwb15,
+			R.drawable.mwb16,
+			R.drawable.mwb17,
+			// R.drawable.mwb18,
+			// R.drawable.mwb19,
 	};
-	int hitFrameLen = hitFrameResId.length;
+
+
+	int motionFrameLen = motionFrameResId.length;
+	
+	int motionLast = motionFrameLen - 1;
+	int motionHit = motionFrameLen - 3;
+	
 	Runnable mainAnimRnb = new Runnable() {
 		@Override
 		public void run() {
-			isMineHit ^= true;
-			hitFrame++;
-			if (hitFrame < (hitFrameLen - 1)) {
-				ivMineWorker.setImageResource(hitFrameResId[hitFrame]);
-			} else {
-				ivMineWorker.setImageResource(hitFrameResId[hitFrame]);
-				hitFrame = 0;
-				String hitMsg = dataMgr.hitMine();
-				hitEffectCanvas.addStr(hitMsg);
-				if (hitMsg.contains("+")) {
-					// ActMain.tvSystemMsg.setText(ActMain.tvSystemMsg.getText().toString() + hitMsg + "\n");
-					systemMsgAdapter.add(hitMsg);
-					systemMsgAdapter.notifyDataSetChanged();
-				}
-				if (!isShakeAnim) {
-					ivMineObj.startAnimation(shake);
-					isShakeAnim = true;
-				}
-			}
-			updateCombineInven();
-			updateMatCount();
-			mainAnimHandler.postDelayed(this, hitDelay);
+			motionNext();
+			//
+			mainAnimHandler.postDelayed(this, motionDelay);
 		}
 	};
-	
-	int hitDelay = 120;
+
+	public void motionNext() {
+		if(motionFrame == motionHit) {
+			String hitMsg = dataMgr.hitMine();
+			hitEffectCanvas.addStr(hitMsg);
+			//
+			if (hitMsg.contains("+")) {
+				systemMsgAdapter.add(hitMsg);
+				systemMsgAdapter.notifyDataSetChanged();
+			}
+			//
+			if (!isShakeAnim) {
+				ivMineObj.startAnimation(shake);
+				isShakeAnim = true;
+			}
+		} else if (motionFrame == motionLast) {
+			motionFrame = 0;
+		}
+		ivMineWorker.setImageResource(motionFrameResId[motionFrame]);
+		motionFrame++;
+	}
+
+	AnimationSet visibleAnimSet;
+	AlphaAnimation visibleAlphaAnim, invisibleAlphaAnim;
+	ScaleAnimation scaleAnim;
+
+	public void initAnim() {
+		visibleAlphaAnim = new AlphaAnimation(0.5f, 1.0f);
+		visibleAlphaAnim.setDuration(250);
+		visibleAlphaAnim.setFillAfter(false);
+//		scaleAnim = new ScaleAnimation(
+//						0.8f, // fromX (float)
+//						1.0f, // toX
+//						0.8f,  // fromY
+//						1.0f, // toY
+//						1.0f, 1.0f);
+
+		scaleAnim = new ScaleAnimation(0.5f, 1f, 0.5f, 1f, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.65f);
+		scaleAnim.setDuration(150); // 표현시간
+
+
+		invisibleAlphaAnim = new AlphaAnimation(1.0f, 0.0f);
+		invisibleAlphaAnim.setStartOffset(250);
+		invisibleAlphaAnim.setDuration(250);
+
+		invisibleAlphaAnim.setFillAfter(false);
+
+		visibleAnimSet = new AnimationSet(true);
+		visibleAnimSet.setInterpolator(new AccelerateInterpolator());
+		visibleAnimSet.addAnimation(visibleAlphaAnim);
+		visibleAnimSet.addAnimation(scaleAnim);
+		visibleAnimSet.addAnimation(invisibleAlphaAnim);
+		visibleAnimSet.setFillAfter(true);
+	}
+
+
+	int motionDelay = 90;
+
+	@Override
+	public void hit() {
+		ivHitEffect.startAnimation(visibleAnimSet);
+
+		Item equipItem = dataMgr.getEquipItem();
+		if (equipItem != null) {
+			int equipDurability = equipItem.getDurability();
+			if (equipDurability > 0) {
+				equipDurability = equipItem.consumeDurability();
+				tvEquipItemDurability.setText(String.valueOf(equipDurability));
+			} else {
+				dataMgr.releaseEquipment();
+			}
+		}
+		Item lunchItem = dataMgr.getLunchItem();
+		if (lunchItem != null) {
+			int lunchDurability = lunchItem.getDurability();
+			if (lunchDurability > 0) {
+				lunchDurability = lunchItem.consumeDurability();
+				tvLunchItemDurability.setText(String.valueOf(lunchDurability));
+			} else {
+				dataMgr.removeLunch();
+			}
+		}
+	}
 
 	public void updateCombineInven() {
 		for (int i = 0; i < ivCombineInven.length; i++) {
@@ -275,6 +408,7 @@ public class ActMain extends Activity implements DataUpdate {
 		}
 	}
 
+	@Override
 	public void updateMatCount() {
 		for (int i = 0; i < ivMat.length; i++) {
 			ivMat[i].setVisibility(View.INVISIBLE);
@@ -314,95 +448,58 @@ public class ActMain extends Activity implements DataUpdate {
 
 	@Override
 	public void addSystemMsg(String msg) {
+		if (msg.contains(TOAST_TOKEN)) {
+			msg = msg.replace(TOAST_TOKEN, "");
+			Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+		}
 		systemMsgAdapter.add(msg);
 		systemMsgAdapter.notifyDataSetChanged();
 	}
 
-	private Item equipItem = null;
-	private Item lunchItem = null;
-
 	@Override
 	public void equipItem(Item item) {
 		if (item == null) return;
-		if (equipItem != null) dataMgr.releaseEquipment();
-
-		equipItem = item;
-		ivEquipItem.setImageResource(equipItem.getResId());
-		tvEquipItemDurability.setText(String.valueOf(equipItem.getDurability()));
-		tvEquipItemFindChance.setText(MathMgr.roundPer(equipItem.getFindChance()) + "%");
-		updateItemStatMsg();
+		ivEquipItem.setImageResource(item.getResId());
+		tvEquipItemDurability.setText(String.valueOf(item.getDurability()));
+		tvEquipItemFindChance.setText(MathMgr.roundPer(item.getFindChance()) + "%");
 	}
 
 	@Override
 	public void lunchItem(Item item) {
 		if (item == null) return;
-		if (lunchItem != null) dataMgr.releaseLunch();
-		
-		lunchItem = item;
-		ivLunchItem.setImageResource(lunchItem.getResId());
-		tvLunchItemDurability.setText(String.valueOf(lunchItem.getDurability()));
-		tvLunchItemFindChance.setText(MathMgr.roundPer(lunchItem.getFindChance()) + "%");
-		updateItemStatMsg();
+		ivLunchItem.setImageResource(item.getResId());
+		tvLunchItemDurability.setText(String.valueOf(item.getDurability()));
+		tvLunchItemFindChance.setText(MathMgr.roundPer(item.getFindChance()) + "%");
 	}
 
 	@Override
 	public void removeEquipment() {
+		Item equipItem = dataMgr.getEquipItem();
 		String msg = equipItem.getName() + " 장착 해제";
-
+		addSystemMsg(msg);
 		ivEquipItem.setImageResource(R.drawable.wp_slot);
 		tvEquipItemFindChance.setText("0%");
 		tvEquipItemDurability.setText("0");
-		equipItem = null;
-
-		addSystemMsg(msg);
-		updateItemStatMsg();
 	}
 
 	@Override
 	public void removeLunch() {
+		Item lunchItem = dataMgr.getLunchItem();
 		String msg = lunchItem.getName() + " 먹기 끝";
-
+		addSystemMsg(msg);
 		ivLunchItem.setImageResource(R.drawable.rice);
-		dataMgr.removeLunch();
 		tvLunchItemFindChance.setText("0%");
 		tvLunchItemDurability.setText("0");
-		lunchItem = null;
-
-		addSystemMsg(msg);
-		updateItemStatMsg();
 	}
 
 	@Override
-	public void updateItemStatMsg() {
-		String itemStat = "총 확률 : " + MathMgr.roundPer(dataMgr.getFindChance()) + "%";
-		if (equipItem != null || lunchItem != null) {
-			float sumFindChance = MathMgr.roundPer(equipItem.getFindChance() + lunchItem.getFindChance());
-			itemStat += "\n(아이템:+" + sumFindChance + "%)";
-		}
+	public void updateFindChanceMsg() {
+		Log.d("d", "updateFindChanceMsg");
+		String itemStat = "확률 : " + MathMgr.roundPer(dataMgr.getSumFindChance()) + "%";
+		float itemFindChance = dataMgr.getItemFindChance();
+		if (itemFindChance > 0)
+			itemStat += "(템:+" + MathMgr.roundPer(itemFindChance) + "%)";
 		tvItemStat.setText(itemStat);
 	}
 
-	@Override
-	public void hit() {
-		if (equipItem != null) {
-			int equipDurability = equipItem.getDurability();
-			if (equipDurability > 0) {
-				equipDurability = equipItem.consumeDurability();
-				tvEquipItemDurability.setText(String.valueOf(equipDurability));
-			} else {
-				dataMgr.releaseEquipment();
-			}
-		}
-		
-		if (lunchItem != null) {
-			int lunchDurability = lunchItem.getDurability();
-			if (lunchDurability > 0) {
-				lunchDurability = lunchItem.consumeDurability();
-				tvLunchItemDurability.setText(String.valueOf(lunchDurability));
-			} else {
-				dataMgr.removeLunch();
-			}
-		}
-
-	}
 }

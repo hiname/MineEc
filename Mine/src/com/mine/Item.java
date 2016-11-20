@@ -14,6 +14,7 @@ public class Item implements Cloneable{
 	private String type;
 	private float findChance;
 	private int durability;
+	private int maxDurability;
 
 	public Object clone() {
 		try {
@@ -34,13 +35,11 @@ public class Item implements Cloneable{
 		this.type = type;
 		this.findChance = addFindChance;
 		this.durability = durability;
+		this.maxDurability = durability;
 	}
 
 	public void setId(int id) {
-		Log.d("d", "setId_id : " + id);
 		this.id = id;
-
-		Log.d("d", "setId_ModifyPack : " + getModifyPack());
 	}
 
 	public int getId() {
@@ -73,6 +72,10 @@ public class Item implements Cloneable{
 
 	public int getDurability() {
 		return durability;
+	}
+
+	public int getMaxDurability() {
+		return maxDurability;
 	}
 
 	public void setFindChance(float findChance) {
