@@ -313,7 +313,7 @@ public class DataMgr {
 		return lastIdleMineCount;
 	}
 
-	public long getLastIdleSecTime() {
+	public long getLastIdleSecond() {
 		return lastIdleSecond;
 	}
 	
